@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"math/rand/v2"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -29,7 +31,7 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 	msgs, err := ch.Consume(
 		q.Name,
 		"",
-		true,
+		false,
 		false,
 		false,
 		false,
@@ -38,7 +40,10 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 
 	go func() {
 		for d := range msgs {
-			slog.Info("Message received", "content", d.Body)
+			processingTimeMs := rand.IntN(500)
+			time.Sleep(time.Duration(processingTimeMs) * time.Millisecond)
+			slog.Info("Message processed", "processingTimeMs", processingTimeMs, "content", d.Body)
+			d.Ack(false)
 		}
 	}()
 
@@ -61,9 +66,16 @@ func main() {
 		"mdcore-reports",
 		true,
 		false,
-		false, false,
-		nil)
+		false,
+		false,
+		amqp.Table{
+			amqp.QueueTypeArg:     amqp.QueueTypeQuorum,
+			amqp.QueueMaxLenArg:   10,
+			amqp.QueueOverflowArg: "reject-publish",
+		})
 	failOnError(err, "Failed to declare queue")
+
+	err = ch.Qos(1, 0, false)
 
 	receive(ch, q)
 }

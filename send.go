@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -38,10 +39,11 @@ func send(ch *amqp.Channel, q amqp.Queue, msg string) {
 		false,
 		false,
 		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
 			ContentType: "text/plain",
-			Body:        []byte(msg)})
+			Body:        []byte(msg),
+		})
 	logOnError(err, "Could not publilsh a message")
-	slog.Info("Message sent", "content", msg)
 }
 
 func main() {
@@ -57,9 +59,33 @@ func main() {
 		"mdcore-reports",
 		true,
 		false,
-		false, false,
-		nil)
+		false,
+		false,
+		amqp.Table{
+			amqp.QueueTypeArg:     amqp.QueueTypeQuorum,
+			amqp.QueueMaxLenArg:   10,
+			amqp.QueueOverflowArg: "reject-publish",
+		})
 	failOnError(err, "Failed to declare queue")
 
-	send(ch, q, "hello batminh!!")
+	ack, nack := ch.NotifyConfirm(make(chan uint64, 1), make(chan uint64, 1))
+
+	i := 0
+	for range time.Tick(10 * time.Millisecond) {
+		msg :=  fmt.Sprintf("hello batminh %d", i)
+		err = ch.Confirm(false)
+		if err != nil {
+			slog.Error("Could not confirm", "Reason", err.Error())
+		}
+		send(ch, q,msg)
+
+		select {
+		case <-ack:
+			slog.Info("Message sent", "content", msg)
+		case <-nack:
+			slog.Error("Consumers overload, slowing down")
+			time.Sleep(3 * time.Second)
+		}
+		i++
+	}
 }
