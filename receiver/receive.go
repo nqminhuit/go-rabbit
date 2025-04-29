@@ -1,31 +1,14 @@
 package main
 
 import (
-	"io"
-	"log"
 	"log/slog"
 	"math/rand/v2"
+	"server/common"
+	"server/utils"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
-
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Panicf("%s: %s", msg, err)
-	}
-}
-
-func logOnError(err error, msg string) {
-	if err != nil {
-		slog.Error(msg, "Reason", err.Error())
-	}
-}
-
-func close(c io.Closer) {
-	err := c.Close()
-	logOnError(err, "Could not close")
-}
 
 func receive(ch *amqp.Channel, q amqp.Queue) {
 	msgs, err := ch.Consume(
@@ -36,7 +19,7 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 		false,
 		false,
 		nil)
-	failOnError(err, "Failed to register a consumer")
+	utils.FailOnError(err, "Failed to register a consumer")
 
 	go func() {
 		for d := range msgs {
@@ -55,25 +38,14 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 
 func main() {
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer close(conn)
+	utils.FailOnError(err, "Failed to connect to RabbitMQ")
+	defer utils.Close(conn)
 
 	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a RabbitMQ channel")
-	defer close(ch)
+	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
+	defer utils.Close(ch)
 
-	q, err := ch.QueueDeclare(
-		"mdcore-reports",
-		true,
-		false,
-		false,
-		false,
-		amqp.Table{
-			amqp.QueueTypeArg:     amqp.QueueTypeQuorum,
-			amqp.QueueMaxLenArg:   10,
-			amqp.QueueOverflowArg: "reject-publish",
-		})
-	failOnError(err, "Failed to declare queue")
+	q := common.DeclareQueue(ch)
 
 	err = ch.Qos(1, 0, false)
 
