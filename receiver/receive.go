@@ -10,6 +10,12 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+func sendDataToOpenSearch() {
+	// listen to a buffer channel
+	// when the channel reach max capacity
+	// send data to opensearch
+}
+
 func receive(ch *amqp.Channel, q amqp.Queue) {
 	msgs, err := ch.Consume(
 		q.Name,
@@ -24,11 +30,26 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 	go func() {
 		i := 0
 		for d := range msgs {
+			// 1. compact json
 			compacted := &bytes.Buffer{}
 			err := json.Compact(compacted, d.Body)
 			utils.LogOnError(err, "Could not process json")
 
-			slog.Info("Message processed", "i",i)
+			// 2. add metadata to json:
+			// "deploymentId", deploymentId,
+			// "accountId", accountId,
+			// "instanceId", instanceId,
+			// "instanceName", SecurityContextUtils.getInstanceName(),
+			// "groupId", groupId,
+			// "groupName", SecurityContextUtils.getGroupName(),
+			// "retentionMs", retentionMs
+
+			// 3. send to opensearch
+			// make a buffer channel with size = 50
+			// send json to that buffer channel
+			// ack
+
+			slog.Info("Message processed", "i", i)
 			err = d.Ack(false)
 			utils.LogOnError(err, "Could not ack message")
 			i++
@@ -37,7 +58,7 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 
 	slog.Info("Waiting for messages, to exit press ^C")
 
-	var forever chan struct{}
+	forever := make(chan struct{})
 	<-forever
 }
 
@@ -52,7 +73,7 @@ func main() {
 
 	q := common.DeclareQueue(ch)
 
-	err = ch.Qos(1, 0, false)
+	err = ch.Qos(20, 0, false)
 	utils.LogOnError(err, "Failed to config fair dispatch on channel")
 
 	receive(ch, q)
