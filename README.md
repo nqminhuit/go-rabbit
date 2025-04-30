@@ -18,3 +18,12 @@ go run send.go
 ```bash
 go run receiver/receive.go
 ```
+
+## Playground
+The directory `_playground` is for POC only, to run code from that directory:
+```bash
+cd _playground
+go run .
+```
+
+it will execute the main function in `main.go` file
