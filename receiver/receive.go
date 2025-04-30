@@ -26,7 +26,8 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 			processingTimeMs := rand.IntN(500)
 			time.Sleep(time.Duration(processingTimeMs) * time.Millisecond)
 			slog.Info("Message processed", "processingTimeMs", processingTimeMs, "content", d.Body)
-			d.Ack(false)
+			err = d.Ack(false)
+			utils.LogOnError(err, "Could not ack message")
 		}
 	}()
 
@@ -48,6 +49,7 @@ func main() {
 	q := common.DeclareQueue(ch)
 
 	err = ch.Qos(1, 0, false)
+	utils.LogOnError(err, "Failed to config fair dispatch on channel")
 
 	receive(ch, q)
 }
