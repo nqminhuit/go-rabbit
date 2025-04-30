@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"log/slog"
-	"math/rand/v2"
 	"server/common"
 	"server/utils"
-	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -22,12 +22,16 @@ func receive(ch *amqp.Channel, q amqp.Queue) {
 	utils.FailOnError(err, "Failed to register a consumer")
 
 	go func() {
+		i := 0
 		for d := range msgs {
-			processingTimeMs := rand.IntN(500)
-			time.Sleep(time.Duration(processingTimeMs) * time.Millisecond)
-			slog.Info("Message processed", "processingTimeMs", processingTimeMs, "content", d.Body)
+			compacted := &bytes.Buffer{}
+			err := json.Compact(compacted, d.Body)
+			utils.LogOnError(err, "Could not process json")
+
+			slog.Info("Message processed", "i",i)
 			err = d.Ack(false)
 			utils.LogOnError(err, "Could not ack message")
+			i++
 		}
 	}()
 
