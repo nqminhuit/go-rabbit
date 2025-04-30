@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"net/http"
 	"server/common"
 	"server/utils"
 	"time"
@@ -12,10 +12,14 @@ import (
 )
 
 func send(ch *amqp.Channel, q amqp.Queue, msg string) {
+	err := ch.Confirm(false)
+	if err != nil {
+		slog.Error("Could not confirm", "Reason", err.Error())
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := ch.PublishWithContext(
+	err = ch.PublishWithContext(
 		ctx,
 		"",
 		q.Name,
@@ -42,22 +46,24 @@ func main() {
 
 	ack, nack := ch.NotifyConfirm(make(chan uint64, 1), make(chan uint64, 1))
 
-	i := 0
-	for range time.Tick(10 * time.Millisecond) {
-		msg := fmt.Sprintf("hello batminh %d", i)
-		err = ch.Confirm(false)
-		if err != nil {
-			slog.Error("Could not confirm", "Reason", err.Error())
-		}
-		send(ch, q, msg)
+	mux := http.NewServeMux()
 
-		select {
-		case <-ack:
-			slog.Info("Message sent", "content", msg)
-		case <-nack:
-			slog.Error("Consumers overload, slowing down")
-			time.Sleep(3 * time.Second)
-		}
-		i++
+	mux.HandleFunc(
+		"POST /mdcore/integration/console/{deploymentId}/report/scan",
+		func(w http.ResponseWriter, r *http.Request) {
+			msg := r.PathValue("deploymentId")
+			send(ch, q, msg)
+			select {
+			case <-ack:
+				w.WriteHeader(200)
+			case <-nack:
+				w.WriteHeader(429)
+			}
+		})
+
+	slog.Info("Server is up and listening on port 9093")
+	err = http.ListenAndServe(":9093", mux)
+	if err != nil {
+		utils.FailOnError(err, "Could not create http server")
 	}
 }
