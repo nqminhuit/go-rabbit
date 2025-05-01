@@ -14,7 +14,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func send(ch *amqp.Channel, q amqp.Queue, part *multipart.Part) error {
+func send(ch *amqp.Channel, qName string, part *multipart.Part) error {
 	defer utils.Close(part)
 	err := ch.Confirm(false)
 	if err != nil {
@@ -33,7 +33,7 @@ func send(ch *amqp.Channel, q amqp.Queue, part *multipart.Part) error {
 	return ch.PublishWithContext(
 		ctx,
 		"",
-		q.Name,
+		qName,
 		false,
 		false,
 		amqp.Publishing{
@@ -60,7 +60,7 @@ func main() {
 	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
 	defer utils.Close(ch)
 
-	q := common.DeclareQueue(ch)
+	qName := common.DeclareQueue(ch)
 
 	ack, nack := ch.NotifyConfirm(make(chan uint64, 1), make(chan uint64, 1))
 
@@ -85,7 +85,7 @@ func main() {
 					continue
 				}
 
-				err = send(ch, q, part)
+				err = send(ch, qName, part)
 				utils.LogOnError(err, "Could not send message to RabbitMQ")
 				select {
 				case <-ack:

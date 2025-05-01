@@ -43,6 +43,6 @@ function send() {
         -F "file32=@/home/minh/Documents/dev/core_req_nested/f336c57e7c4045db9d8771d29872f629.json"
 }
 
-for i in $(seq 1 100); do
+for i in $(seq 1 1); do
    send
 done

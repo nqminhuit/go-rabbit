@@ -6,7 +6,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func DeclareQueue(ch *amqp.Channel) amqp.Queue {
+func DeclareQueue(ch *amqp.Channel) string {
 	q, err := ch.QueueDeclare(
 		"mdcore-reports",
 		true,
@@ -19,5 +19,5 @@ func DeclareQueue(ch *amqp.Channel) amqp.Queue {
 			amqp.QueueOverflowArg: "reject-publish",
 		})
 	utils.FailOnError(err, "Failed to declare queue")
-	return q
+	return q.Name
 }
