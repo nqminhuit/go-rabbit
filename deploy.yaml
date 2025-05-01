@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gom
+spec:
+  restartPolicy: Never
+  containers:
+
+  # - name: redis
+  #   image: docker.io/library/redis:7.2.7-alpine3.21
+  #   resources:
+  #     limits:
+  #       memory: "256M"
+  #   ports:
+  #   - containerPort: 6379
+  #     hostPort: 6379
+
+  - name: mq
+    image: docker.io/rabbitmq:4.0-management-alpine
+    ports:
+    - containerPort: 5672
+      hostPort: 5672
+    - containerPort: 15672
+      hostPort: 15672
+
+  # - name: db
+  #   image: docker.io/mongo:8.0.4
+  #   resources:
+  #     limits:
+  #       memory: "512M"
+  #   ports:
+  #   - containerPort: 27017
+  #     hostPort: 27017
+  #   volumeMounts:
+  #   - mountPath: /data/db
+  #     name: pv-mongodb-fusion
+
+  - name: sender
+    image: localhost/gom-sender:latest
+    resources:
+      limits:
+        memory: "100M"
+    ports:
+    - containerPort: 9093
+      hostPort: 9093
+    # env:
+    # - name: SPRING_PROFILES_ACTIVE
+    #   value: dev
+
+  - name: receiver
+    image: localhost/gom-receiver:latest
+    resources:
+      limits:
+        memory: "100M"
+
+  # volumes:
+  # - name: pv-mongodb-fusion
+  #   hostPath:
+  #     path: /opt/compose/fusion/mongodb/db-cloud
+  #     type: Directory

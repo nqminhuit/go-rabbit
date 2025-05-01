@@ -1,0 +1,12 @@
+FROM docker.io/golang:1.24.2-alpine3.21 as base
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+COPY utils ./utils
+COPY common ./common
+
+FROM base
+WORKDIR /build
+COPY receiver/receive.go .
+RUN go build -o receiver receive.go
+CMD ["/build/receiver"]

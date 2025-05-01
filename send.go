@@ -52,8 +52,7 @@ func processSingleReport(reader *multipart.Reader) (*multipart.Part, error) {
 }
 
 func main() {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672")
-	utils.FailOnError(err, "Failed to connect to RabbitMQ")
+	conn := common.Connect("amqp://guest:guest@localhost:5672")
 	defer utils.Close(conn)
 
 	ch, err := conn.Channel()

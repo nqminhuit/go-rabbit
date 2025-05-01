@@ -2,6 +2,7 @@ package common
 
 import (
 	"server/utils"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -20,4 +21,21 @@ func DeclareQueue(ch *amqp.Channel) string {
 		})
 	utils.FailOnError(err, "Failed to declare queue")
 	return q.Name
+}
+
+func Connect(url string) *amqp.Connection {
+	retry := 10
+	for {
+		conn, err := amqp.Dial(url)
+		if err != nil {
+			if retry < 1 {
+				utils.FailOnError(err, "Failed to connect to RabbitMQ")
+			}
+			retry--
+			time.Sleep(time.Second)
+			continue
+		} else {
+			return conn
+		}
+	}
 }

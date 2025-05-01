@@ -27,3 +27,15 @@ go run .
 ```
 
 it will execute the main function in `main.go` file
+
+## Full deployment
+```bash
+podman build -t gom-sender -f Dockerfile.sender
+podman build -t gom-receiver -f Dockerfile.receiver
+podman kube play --replace deploy.yaml
+```
+
+or:
+```bash
+bash start.sh
+```
