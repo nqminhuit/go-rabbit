@@ -1,6 +1,7 @@
 package common
 
 import (
+	"log/slog"
 	"server/utils"
 	"time"
 
@@ -16,7 +17,7 @@ func DeclareQueue(ch *amqp.Channel) string {
 		false,
 		amqp.Table{
 			amqp.QueueTypeArg:     amqp.QueueTypeQuorum,
-			amqp.QueueMaxLenArg:   100,
+			amqp.QueueMaxLenArg:   1000,
 			amqp.QueueOverflowArg: "reject-publish",
 		})
 	utils.FailOnError(err, "Failed to declare queue")
@@ -35,6 +36,7 @@ func Connect(url string) *amqp.Connection {
 			time.Sleep(time.Second)
 			continue
 		} else {
+			slog.Info("Connected to RabbitMQ")
 			return conn
 		}
 	}

@@ -47,7 +47,12 @@ spec:
     # - name: SPRING_PROFILES_ACTIVE
     #   value: dev
 
-  - name: receiver
+  - name: receiver1
+    image: localhost/gom-receiver:latest
+    resources:
+      limits:
+        memory: "100M"
+  - name: receiver2
     image: localhost/gom-receiver:latest
     resources:
       limits:

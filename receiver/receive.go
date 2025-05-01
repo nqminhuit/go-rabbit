@@ -12,12 +12,12 @@ import (
 )
 
 type RabbitMQBatchConsumer struct {
-	Connection *amqp.Connection
-	Channel    *amqp.Channel
-	Messages   []amqp.Delivery
-	BatchSize  int
-	QueueName  string
-	LastProcess time.Time
+	Connection            *amqp.Connection
+	Channel               *amqp.Channel
+	Messages              []amqp.Delivery
+	BatchSize             int
+	QueueName             string
+	LastProcess           time.Time
 	InactiveTimeoutSecond int
 }
 
@@ -41,8 +41,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 		go func() {
 			for range time.Tick(time.Duration(consumer.InactiveTimeoutSecond) * time.Second) {
 				msgSize := len(consumer.Messages)
-				if sinceSecond := time.Since(consumer.LastProcess).Seconds();
-					sinceSecond > float64(consumer.InactiveTimeoutSecond) && msgSize > 0 {
+				if sinceSecond := time.Since(consumer.LastProcess).Seconds(); sinceSecond > float64(consumer.InactiveTimeoutSecond) && msgSize > 0 {
 					slog.Info("consumming left over messages", "size", msgSize, "sinceSecond", sinceSecond)
 					consumer.process()
 				}
@@ -115,10 +114,10 @@ func main() {
 	qName := common.DeclareQueue(ch)
 
 	consumer := &RabbitMQBatchConsumer{
-		Connection: conn,
-		BatchSize:  5,
-		QueueName:  qName,
-		Channel:    ch,
+		Connection:            conn,
+		BatchSize:             50,
+		QueueName:             qName,
+		Channel:               ch,
 		InactiveTimeoutSecond: 3,
 	}
 	consumer.start()

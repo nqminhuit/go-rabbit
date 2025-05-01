@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -14,9 +15,17 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func send(ch *amqp.Channel, qName string, part *multipart.Part) error {
+func send(conn *amqp.Connection, part *multipart.Part) error {
+	ch, err := conn.Channel()
+	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
+	defer utils.Close(ch)
+
+	qName := common.DeclareQueue(ch) // declare queue every api request???
+
+	ack, nack := ch.NotifyConfirm(make(chan uint64, 1), make(chan uint64, 1))
+
 	defer utils.Close(part)
-	err := ch.Confirm(false)
+	err = ch.Confirm(false)
 	if err != nil {
 		return err
 	}
@@ -29,8 +38,7 @@ func send(ch *amqp.Channel, qName string, part *multipart.Part) error {
 	if err != nil {
 		return err
 	}
-
-	return ch.PublishWithContext(
+	err = ch.PublishWithContext(
 		ctx,
 		"",
 		qName,
@@ -41,6 +49,16 @@ func send(ch *amqp.Channel, qName string, part *multipart.Part) error {
 			ContentType:  "application/json",
 			Body:         buffer.Bytes(),
 		})
+	if err != nil {
+		return err
+	}
+
+	select {
+	case <-ack:
+		return nil
+	case <-nack:
+		return errors.New("429")
+	}
 }
 
 func processSingleReport(reader *multipart.Reader) (*multipart.Part, error) {
@@ -55,14 +73,6 @@ func main() {
 	conn := common.Connect("amqp://guest:guest@localhost:5672")
 	defer utils.Close(conn)
 
-	ch, err := conn.Channel()
-	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
-	defer utils.Close(ch)
-
-	qName := common.DeclareQueue(ch)
-
-	ack, nack := ch.NotifyConfirm(make(chan uint64, 1), make(chan uint64, 1))
-
 	mux := http.NewServeMux()
 
 	mux.HandleFunc(
@@ -73,7 +83,6 @@ func main() {
 			reader, err := r.MultipartReader()
 			utils.LogOnError(err, "Could not get multipart reader")
 
-			var statusCode int
 			for {
 				part, err := processSingleReport(reader)
 				if err == io.EOF {
@@ -84,21 +93,18 @@ func main() {
 					continue
 				}
 
-				err = send(ch, qName, part)
+				err = send(conn, part)
 				utils.LogOnError(err, "Could not send message to RabbitMQ")
-				select {
-				case <-ack:
-					statusCode = 200
-				case <-nack:
+				if err != nil && err.Error() == "429" {
 					w.WriteHeader(429)
 					return
 				}
 			}
-			w.WriteHeader(statusCode)
+			w.WriteHeader(200)
 		})
 
 	slog.Info("Server is up and listening on port 9093")
-	err = http.ListenAndServe(":9093", mux)
+	err := http.ListenAndServe(":9093", mux)
 	if err != nil {
 		utils.FailOnError(err, "Could not create http server")
 	}
