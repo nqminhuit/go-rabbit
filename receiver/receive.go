@@ -66,6 +66,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 func (consumer *RabbitMQBatchConsumer) process() {
 	slog.Info("processing")
 	i := 0
+	var lastMsg *amqp.Delivery
 	for _, d := range consumer.Messages {
 		// 1. compact json
 		compacted := &bytes.Buffer{}
@@ -91,10 +92,13 @@ func (consumer *RabbitMQBatchConsumer) process() {
 		// send json to that buffer channel
 		// ack
 
-		err = d.Ack(false)
-		utils.LogOnError(err, "Could not ack message")
 		i++
+		lastMsg = &d
 	}
+
+	err := lastMsg.Ack(true)
+	utils.LogOnError(err, "Could not ack message")
+
 	consumer.Messages = []amqp.Delivery{}
 	consumer.LastProcess = time.Now()
 	slog.Info("lastProcessed", "time", consumer.LastProcess)
@@ -113,7 +117,7 @@ func main() {
 
 	consumer := &RabbitMQBatchConsumer{
 		Connection: conn,
-		BatchSize:  10,
+		BatchSize:  5,
 		QueueName:  qName,
 		Channel:    ch,
 		InactiveTimeoutSecond: 3,
