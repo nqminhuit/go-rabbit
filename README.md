@@ -9,14 +9,21 @@ podman run --replace -d --name rabbitmq -p 5672:5672 -p 15672:15672 docker.io/ra
 - management dashboard is at: http://localhost:15672/
 - credentials: `guest/guest`
 
-## Start services
+## Start individual service
+
+sender:
 ```bash
 go run send.go
 ```
 
-
+receiver:
 ```bash
-go run receiver/receive.go
+go build -C receiver -o ../build/;
+OPENSEARCH_INDEX_NAME_MDCORE=mdcorereports \
+OPENSEARCH_USERNAME=admin \
+OPENSEARCH_PASSWORD=5D27220@08e3 \
+OPENSEARCH_ADDRESSES=https://localhost:9200 \
+build/receiver
 ```
 
 ## Playground
@@ -32,7 +39,7 @@ it will execute the main function in `main.go` file
 ```bash
 podman build -t gom-sender -f Dockerfile.sender
 podman build -t gom-receiver -f Dockerfile.receiver
-podman kube play --replace deploy.yaml
+podman kube play --configmap configs.yaml --replace deploy.yaml
 ```
 
 or:

@@ -22,6 +22,24 @@ spec:
       hostPort: 5672
     - containerPort: 15672
       hostPort: 15672
+    env:
+    - name: TZ
+      value: Asia/Ho_Chi_Minh
+
+  - name: opensearch
+    image: docker.io/opensearchproject/opensearch:2.19.1
+    env:
+    - name: discovery.type
+      value: single-node
+    - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+      value: 5D27220@08e3
+    - name: TZ
+      value: Asia/Ho_Chi_Minh
+    ports:
+    - containerPort: 9200
+      hostPort: 9200
+    - containerPort: 9600
+      hostPort: 9600
 
   # - name: db
   #   image: docker.io/mongo:8.0.4
@@ -43,17 +61,20 @@ spec:
     ports:
     - containerPort: 9093
       hostPort: 9093
-    # env:
-    # - name: SPRING_PROFILES_ACTIVE
-    #   value: dev
 
   - name: receiver1
     image: localhost/gom-receiver:latest
     resources:
       limits:
         memory: "100M"
+    envFrom:
+    - configMapRef:
+        name: opensearch-config
   - name: receiver2
     image: localhost/gom-receiver:latest
+    envFrom:
+    - configMapRef:
+        name: opensearch-config
     resources:
       limits:
         memory: "100M"

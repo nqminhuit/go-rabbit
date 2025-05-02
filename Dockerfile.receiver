@@ -8,6 +8,6 @@ ENV TZ=Asia/Ho_Chi_Minh
 
 FROM base
 WORKDIR /build
-COPY receiver/receive.go .
-RUN go build -o receiver receive.go
+COPY receiver/ .
+RUN go build -o receiver
 CMD ["/build/receiver"]

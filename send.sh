@@ -44,8 +44,10 @@ function send() {
 }
 
 for i in $(seq 1 100); do
-    for i in $(seq 1 145); do
+    for i in $(seq 1 100); do
         send&
     done
     sleep 1s
 done
+
+# for i in $(seq 1 1); do send; done

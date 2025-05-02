@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-config
+  namespace: default
+data:
+  OPENSEARCH_INDEX_NAME_MDCORE: mdcorereports
+  OPENSEARCH_USERNAME: admin
+  OPENSEARCH_PASSWORD: 5D27220@08e3
+  OPENSEARCH_ADDRESSES: https://localhost:9200
