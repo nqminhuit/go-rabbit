@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"server/common"
 	"server/utils"
 	"time"
@@ -16,6 +18,7 @@ import (
 )
 
 func send(conn *amqp.Connection, part *multipart.Part) error {
+	defer utils.Close(part)
 	ch, err := conn.Channel()
 	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
 	defer utils.Close(ch)
@@ -24,7 +27,6 @@ func send(conn *amqp.Connection, part *multipart.Part) error {
 
 	ack, nack := ch.NotifyConfirm(make(chan uint64, 1), make(chan uint64, 1))
 
-	defer utils.Close(part)
 	err = ch.Confirm(false)
 	if err != nil {
 		return err
@@ -103,8 +105,9 @@ func main() {
 			w.WriteHeader(200)
 		})
 
-	slog.Info("Server is up and listening on port 9093")
-	err := http.ListenAndServe(":9093", mux)
+	port := os.Getenv("SVPORT")
+	slog.Info("Server is up and running")
+	err := http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
 	if err != nil {
 		utils.FailOnError(err, "Could not create http server")
 	}

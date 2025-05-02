@@ -45,13 +45,14 @@ func (consumer *RabbitMQBatchConsumer) start() {
 	indexer, err := opensearchutil.NewBulkIndexer(opensearchutil.BulkIndexerConfig{
 		Client:     opensearch.Client,
 		NumWorkers: 1,
+		FlushBytes:    1e+7,
 		Index:      opensearch.IndexName,
 		Pipeline:   INGEST_PIPELINE_NAME,
 		OnFlushEnd: func(_ context.Context) {
 			slog.Info("Flushed", "totalItems", *totalItems)
 			*totalItems = 0
 			if lastMsg != nil {
-				lastMsg.Ack(true)
+				err = lastMsg.Ack(true)
 				utils.LogOnError(err, "Could not ack message")
 			}
 		},

@@ -4,7 +4,7 @@ function send() {
    depId=MSCLNckJ9ZHzNZYmBT69YbbgPwMik1yz7P3S
    depId=MSCL00000000000000000000000000000001
    productType=MDCORE
-   productUrl=localhost:9093
+   productUrl=localhost:8000
    apikey=aaaaaaaaaaaaaaaaaaaaaaaa
    curl -sSL -w 'status: %{http_code}\n' -X POST $productUrl'/mdcore/integration/console/'$depId'/report/scan' \
         -H 'content-type: multipart/form-data' \

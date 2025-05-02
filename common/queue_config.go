@@ -17,7 +17,7 @@ func DeclareQueue(ch *amqp.Channel) string {
 		false,
 		amqp.Table{
 			amqp.QueueTypeArg:     amqp.QueueTypeQuorum,
-			amqp.QueueMaxLenArg:   1000,
+			amqp.QueueMaxLenArg:   100_000,
 			amqp.QueueOverflowArg: "reject-publish",
 		})
 	utils.FailOnError(err, "Failed to declare queue")
