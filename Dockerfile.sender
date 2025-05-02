@@ -6,6 +6,6 @@ COPY utils ./utils
 COPY common ./common
 
 FROM base
-COPY send.go .
+COPY sender/send.go .
 RUN go build -o sender send.go
 CMD ["/build/sender"]

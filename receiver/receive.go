@@ -56,7 +56,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 		}
 	}()
 
-	slog.Info("Waiting for messages, to exit press ^C")
+	slog.Info("Waiting for messages...")
 
 	forever := make(chan struct{})
 	<-forever
