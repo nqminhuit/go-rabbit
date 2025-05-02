@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"server/common"
 	"server/utils"
-	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -14,11 +13,8 @@ import (
 type RabbitMQBatchConsumer struct {
 	Connection            *amqp.Connection
 	Channel               *amqp.Channel
-	Messages              []amqp.Delivery
 	BatchSize             int
 	QueueName             string
-	LastProcess           time.Time
-	InactiveTimeoutSecond int
 }
 
 func (consumer *RabbitMQBatchConsumer) start() {
@@ -38,20 +34,36 @@ func (consumer *RabbitMQBatchConsumer) start() {
 	utils.FailOnError(err, "Failed to register a consumer")
 
 	go func() {
-		go func() {
-			for range time.Tick(time.Duration(consumer.InactiveTimeoutSecond) * time.Second) {
-				msgSize := len(consumer.Messages)
-				if sinceSecond := time.Since(consumer.LastProcess).Seconds(); sinceSecond > float64(consumer.InactiveTimeoutSecond) && msgSize > 0 {
-					slog.Info("consumming left over messages", "size", msgSize, "sinceSecond", sinceSecond)
-					consumer.process()
-				}
-			}
-		}()
+		i := 0
+		var lastMsg *amqp.Delivery
 		for d := range msgs {
-			consumer.Messages = append(consumer.Messages, d)
-			if len(consumer.Messages) >= consumer.BatchSize {
-				slog.Info("consumming batch", "size", len(consumer.Messages))
-				consumer.process()
+			// 1. compact json
+			compacted := &bytes.Buffer{}
+			err := json.Compact(compacted, d.Body)
+			utils.LogOnError(err, "Could not process json")
+
+			var data map[string]any
+			err = json.Unmarshal(compacted.Bytes(), &data)
+			utils.LogOnError(err, "Could not unmarshal json")
+			slog.Info("compacted", "dataId", data["data_id"], "i", i)
+
+			// 2. add metadata to json:
+			// "deploymentId", deploymentId,
+			// "accountId", accountId,
+			// "instanceId", instanceId,
+			// "instanceName", SecurityContextUtils.getInstanceName(),
+			// "groupId", groupId,
+			// "groupName", SecurityContextUtils.getGroupName(),
+			// "retentionMs", retentionMs
+
+			// 3. send to opensearch
+
+			i++
+			lastMsg = &d
+			if i == consumer.BatchSize {
+				err := lastMsg.Ack(true)
+				utils.LogOnError(err, "Could not ack message")
+				i = 0
 			}
 		}
 	}()
@@ -60,47 +72,6 @@ func (consumer *RabbitMQBatchConsumer) start() {
 
 	forever := make(chan struct{})
 	<-forever
-}
-
-func (consumer *RabbitMQBatchConsumer) process() {
-	slog.Info("processing")
-	i := 0
-	var lastMsg *amqp.Delivery
-	for _, d := range consumer.Messages {
-		// 1. compact json
-		compacted := &bytes.Buffer{}
-		err := json.Compact(compacted, d.Body)
-		utils.LogOnError(err, "Could not process json")
-
-		var data map[string]any
-		err = json.Unmarshal(compacted.Bytes(), &data)
-		utils.LogOnError(err, "Could not unmarshal json")
-		slog.Info("compacted", "dataId", data["data_id"], "i", i)
-
-		// 2. add metadata to json:
-		// "deploymentId", deploymentId,
-		// "accountId", accountId,
-		// "instanceId", instanceId,
-		// "instanceName", SecurityContextUtils.getInstanceName(),
-		// "groupId", groupId,
-		// "groupName", SecurityContextUtils.getGroupName(),
-		// "retentionMs", retentionMs
-
-		// 3. send to opensearch
-		// make a buffer channel with size = 50
-		// send json to that buffer channel
-		// ack
-
-		i++
-		lastMsg = &d
-	}
-
-	err := lastMsg.Ack(true)
-	utils.LogOnError(err, "Could not ack message")
-
-	consumer.Messages = []amqp.Delivery{}
-	consumer.LastProcess = time.Now()
-	slog.Info("lastProcessed", "time", consumer.LastProcess)
 }
 
 func main() {
@@ -118,7 +89,6 @@ func main() {
 		BatchSize:             50,
 		QueueName:             qName,
 		Channel:               ch,
-		InactiveTimeoutSecond: 3,
 	}
 	consumer.start()
 }
