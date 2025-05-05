@@ -116,14 +116,6 @@ spec:
     resources:
       limits:
         memory: "100M"
-  - name: receiver6
-    image: localhost/gom-receiver:latest
-    envFrom:
-    - configMapRef:
-        name: opensearch-config
-    resources:
-      limits:
-        memory: "100M"
   # volumes:
   # - name: pv-mongodb-fusion
   #   hostPath:
