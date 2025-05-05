@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
-	"server/common"
+	"server/queue"
 	"server/utils"
 	"strings"
 
@@ -45,7 +45,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 	indexer, err := opensearchutil.NewBulkIndexer(opensearchutil.BulkIndexerConfig{
 		Client:     opensearch.Client,
 		NumWorkers: 1,
-		FlushBytes:    1e+7,
+		FlushBytes: 1e+7,
 		Index:      opensearch.IndexName,
 		Pipeline:   INGEST_PIPELINE_NAME,
 		OnFlushEnd: func(_ context.Context) {
@@ -93,14 +93,17 @@ func (consumer *RabbitMQBatchConsumer) start() {
 }
 
 func main() {
-	conn := common.Connect("amqp://guest:guest@localhost:5672/")
-	defer utils.Close(conn)
+	mq := &queue.RabbitMQ{
+		Url:            "amqp://guest:guest@localhost:5672",
+		QueueName:      "mdcorereports",
+		Exchange:       "",
+		QueueMaxLenArg: 100_000,
+	}
+	mq.Connect()
+	defer mq.Close()
 
-	ch, err := conn.Channel()
-	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
+	ch := mq.EnsureQueue()
 	defer utils.Close(ch)
-
-	qName := common.DeclareQueue(ch)
 
 	coreIndexName := os.Getenv("OPENSEARCH_INDEX_NAME_MDCORE")
 	username := os.Getenv("OPENSEARCH_USERNAME")
@@ -110,9 +113,9 @@ func main() {
 	o := connectToOpenSearch(coreIndexName, username, password, addresses)
 
 	consumer := &RabbitMQBatchConsumer{
-		Connection: conn,
+		Connection: mq.Conn,
 		BatchSize:  1000,
-		QueueName:  qName,
+		QueueName:  mq.QueueName,
 		Channel:    ch,
 		OpenSearchClient: &OpenSearchClient{
 			Client:    o.Client,
