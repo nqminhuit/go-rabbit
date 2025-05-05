@@ -1,2 +1,4 @@
+github.com/opensearch-project/opensearch-go/v4 v4.4.0 h1:YzyQ1fbRdeJES+sFBrX19kdPIsLpYrFdK4S55l6HrWg=
+github.com/opensearch-project/opensearch-go/v4 v4.4.0/go.mod h1:EBLeL9YERzDoWmu5uEMLFndBfhgX3PyquFGYxMIvx5c=
 github.com/rabbitmq/amqp091-go v1.10.0 h1:STpn5XsHlHGcecLmMFCtg7mqq0RnD+zFr4uzukfVhBw=
 github.com/rabbitmq/amqp091-go v1.10.0/go.mod h1:Hy4jKW5kQART1u+JkDTF9YYOQUHXqMuhrgxOEeS7G4o=

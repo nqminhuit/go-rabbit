@@ -3,11 +3,11 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY utils ./utils
-COPY common ./common
+COPY queue ./queue
 ENV TZ=Asia/Ho_Chi_Minh
 
 FROM base
 WORKDIR /build
-COPY receiver/receive.go .
-RUN go build -o receiver receive.go
+COPY receiver/ .
+RUN go build -o receiver
 CMD ["/build/receiver"]

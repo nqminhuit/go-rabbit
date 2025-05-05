@@ -2,23 +2,24 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
-	"server/common"
+	"os"
+	"server/queue"
 	"server/utils"
-	"time"
+	"strings"
 
+	"github.com/opensearch-project/opensearch-go/v4/opensearchutil"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type RabbitMQBatchConsumer struct {
-	Connection            *amqp.Connection
-	Channel               *amqp.Channel
-	Messages              []amqp.Delivery
-	BatchSize             int
-	QueueName             string
-	LastProcess           time.Time
-	InactiveTimeoutSecond int
+	Connection       *amqp.Connection
+	Channel          *amqp.Channel
+	BatchSize        int
+	QueueName        string
+	OpenSearchClient *OpenSearchClient
 }
 
 func (consumer *RabbitMQBatchConsumer) start() {
@@ -37,22 +38,51 @@ func (consumer *RabbitMQBatchConsumer) start() {
 		nil)
 	utils.FailOnError(err, "Failed to register a consumer")
 
+	var lastMsg *amqp.Delivery
+	totalItems := new(int)
+
+	opensearch := consumer.OpenSearchClient
+	indexer, err := opensearchutil.NewBulkIndexer(opensearchutil.BulkIndexerConfig{
+		Client:     opensearch.Client,
+		NumWorkers: 1,
+		FlushBytes: 1e+7,
+		Index:      opensearch.IndexName,
+		Pipeline:   INGEST_PIPELINE_NAME,
+		OnFlushEnd: func(_ context.Context) {
+			slog.Info("Flushed", "totalItems", *totalItems)
+			*totalItems = 0
+			if lastMsg != nil {
+				err = lastMsg.Ack(true)
+				utils.LogOnError(err, "Could not ack message")
+			}
+		},
+	})
+	utils.LogOnError(err, "Failed to create bulk indexer")
+
 	go func() {
-		go func() {
-			for range time.Tick(time.Duration(consumer.InactiveTimeoutSecond) * time.Second) {
-				msgSize := len(consumer.Messages)
-				if sinceSecond := time.Since(consumer.LastProcess).Seconds(); sinceSecond > float64(consumer.InactiveTimeoutSecond) && msgSize > 0 {
-					slog.Info("consumming left over messages", "size", msgSize, "sinceSecond", sinceSecond)
-					consumer.process()
-				}
-			}
-		}()
 		for d := range msgs {
-			consumer.Messages = append(consumer.Messages, d)
-			if len(consumer.Messages) >= consumer.BatchSize {
-				slog.Info("consumming batch", "size", len(consumer.Messages))
-				consumer.process()
-			}
+			// 1. add metadata to json: TODO
+			var data map[string]any
+			err = json.Unmarshal(d.Body, &data)
+			utils.LogOnError(err, "Could not unmarshal json")
+			dataId := data["data_id"].(string)
+			data["deploymentId"] = "5ccab8bb-ceaa-41e1-bd56-fb9660978843"
+			data["accountId"] = "04a4b948-6b80-4eee-bb99-c4495e7db415"
+			data["instanceId"] = "85ddeecd-7448-4cb8-b8af-f6a0d5fcff1b"
+			data["instanceName"] = "ceafdb4d-43e2-4a29-9f41-ed00dc7b7d14"
+			data["groupId"] = "2cb6ea22-1f58-4002-b961-e3e0cb485fb2"
+			data["groupName"] = "01df93b1-ccf7-4627-b008-0d0aea1531f8"
+			data["retentionMs"] = "2c739207-2b44-42fc-b5b7-eef2b58b8e5f"
+
+			// 2. marshal to json
+			content, err := json.Marshal(&data)
+			utils.LogOnError(err, "Failed to marshal data")
+
+			// 3. send json to opensearch
+			consumer.OpenSearchClient.addToBulk(&indexer, dataId, bytes.NewReader(content))
+			*totalItems++
+
+			lastMsg = &d
 		}
 	}()
 
@@ -62,63 +92,35 @@ func (consumer *RabbitMQBatchConsumer) start() {
 	<-forever
 }
 
-func (consumer *RabbitMQBatchConsumer) process() {
-	slog.Info("processing")
-	i := 0
-	var lastMsg *amqp.Delivery
-	for _, d := range consumer.Messages {
-		// 1. compact json
-		compacted := &bytes.Buffer{}
-		err := json.Compact(compacted, d.Body)
-		utils.LogOnError(err, "Could not process json")
-
-		var data map[string]any
-		err = json.Unmarshal(compacted.Bytes(), &data)
-		utils.LogOnError(err, "Could not unmarshal json")
-		slog.Info("compacted", "dataId", data["data_id"], "i", i)
-
-		// 2. add metadata to json:
-		// "deploymentId", deploymentId,
-		// "accountId", accountId,
-		// "instanceId", instanceId,
-		// "instanceName", SecurityContextUtils.getInstanceName(),
-		// "groupId", groupId,
-		// "groupName", SecurityContextUtils.getGroupName(),
-		// "retentionMs", retentionMs
-
-		// 3. send to opensearch
-		// make a buffer channel with size = 50
-		// send json to that buffer channel
-		// ack
-
-		i++
-		lastMsg = &d
-	}
-
-	err := lastMsg.Ack(true)
-	utils.LogOnError(err, "Could not ack message")
-
-	consumer.Messages = []amqp.Delivery{}
-	consumer.LastProcess = time.Now()
-	slog.Info("lastProcessed", "time", consumer.LastProcess)
-}
-
 func main() {
-	conn := common.Connect("amqp://guest:guest@localhost:5672/")
-	defer utils.Close(conn)
+	mq := &queue.RabbitMQ{
+		Url:            "amqp://guest:guest@localhost:5672",
+		QueueName:      "mdcorereports",
+		Exchange:       "",
+		QueueMaxLenArg: 100_000,
+	}
+	mq.Connect()
+	defer mq.Close()
 
-	ch, err := conn.Channel()
-	utils.FailOnError(err, "Failed to open a RabbitMQ channel")
+	ch := mq.EnsureQueue()
 	defer utils.Close(ch)
 
-	qName := common.DeclareQueue(ch)
+	coreIndexName := os.Getenv("OPENSEARCH_INDEX_NAME_MDCORE")
+	username := os.Getenv("OPENSEARCH_USERNAME")
+	password := os.Getenv("OPENSEARCH_PASSWORD")
+	addresses := strings.Split(os.Getenv("OPENSEARCH_ADDRESSES"), ",")
+
+	o := connectToOpenSearch(coreIndexName, username, password, addresses)
 
 	consumer := &RabbitMQBatchConsumer{
-		Connection:            conn,
-		BatchSize:             50,
-		QueueName:             qName,
-		Channel:               ch,
-		InactiveTimeoutSecond: 3,
+		Connection: mq.Conn,
+		BatchSize:  1000,
+		QueueName:  mq.QueueName,
+		Channel:    ch,
+		OpenSearchClient: &OpenSearchClient{
+			Client:    o.Client,
+			IndexName: coreIndexName,
+		},
 	}
 	consumer.start()
 }

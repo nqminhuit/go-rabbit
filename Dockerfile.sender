@@ -3,7 +3,7 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
 COPY utils ./utils
-COPY common ./common
+COPY queue ./queue
 ENV TZ=Asia/Ho_Chi_Minh
 
 FROM base
