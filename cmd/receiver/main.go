@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
-	"server/queue"
+	"server/service"
 	"server/utils"
 	"strings"
 
@@ -19,7 +19,7 @@ type RabbitMQBatchConsumer struct {
 	Channel          *amqp.Channel
 	BatchSize        int
 	QueueName        string
-	OpenSearchClient *OpenSearchClient
+	OpenSearchClient *service.OpenSearchClient
 }
 
 func (consumer *RabbitMQBatchConsumer) start() {
@@ -47,7 +47,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 		NumWorkers: 1,
 		FlushBytes: 1e+7,
 		Index:      opensearch.IndexName,
-		Pipeline:   INGEST_PIPELINE_NAME,
+		Pipeline:   service.INGEST_PIPELINE_NAME,
 		OnFlushEnd: func(_ context.Context) {
 			slog.Info("Flushed", "totalItems", *totalItems)
 			*totalItems = 0
@@ -79,7 +79,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 			utils.LogOnError(err, "Failed to marshal data")
 
 			// 3. send json to opensearch
-			consumer.OpenSearchClient.addToBulk(&indexer, dataId, bytes.NewReader(content))
+			consumer.OpenSearchClient.AddToBulk(&indexer, dataId, bytes.NewReader(content))
 			*totalItems++
 
 			lastMsg = &d
@@ -93,7 +93,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 }
 
 func main() {
-	mq := &queue.RabbitMQ{
+	mq := &service.RabbitMQ{
 		Url:            "amqp://guest:guest@localhost:5672",
 		QueueName:      "mdcorereports",
 		Exchange:       "",
@@ -110,14 +110,14 @@ func main() {
 	password := os.Getenv("OPENSEARCH_PASSWORD")
 	addresses := strings.Split(os.Getenv("OPENSEARCH_ADDRESSES"), ",")
 
-	o := connectToOpenSearch(coreIndexName, username, password, addresses)
+	o := service.ConnectToOpenSearch(coreIndexName, username, password, addresses)
 
 	consumer := &RabbitMQBatchConsumer{
 		Connection: mq.Conn,
 		BatchSize:  1000,
 		QueueName:  mq.QueueName,
 		Channel:    ch,
-		OpenSearchClient: &OpenSearchClient{
+		OpenSearchClient: &service.OpenSearchClient{
 			Client:    o.Client,
 			IndexName: coreIndexName,
 		},

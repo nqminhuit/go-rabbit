@@ -1,4 +1,4 @@
-package queue
+package service
 
 import (
 	"bytes"
@@ -39,7 +39,7 @@ func (mq *RabbitMQ) EnsureQueue() *amqp.Channel {
 	return ch
 }
 
-func (mq *RabbitMQ) send(part *multipart.Part) error {
+func (mq *RabbitMQ) Send(part *multipart.Part) error {
 	defer utils.Close(part)
 
 	ch := mq.EnsureQueue() // run on every api request???

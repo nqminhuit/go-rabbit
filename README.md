@@ -13,17 +13,16 @@ podman run --replace -d --name rabbitmq -p 5672:5672 -p 15672:15672 docker.io/ra
 
 sender:
 ```bash
-go run send.go
+SVPORT=9093 go run cmd/sender/main.go 
 ```
 
 receiver:
 ```bash
-go build -C receiver -o ../build/;
 OPENSEARCH_INDEX_NAME_MDCORE=mdcorereports \
 OPENSEARCH_USERNAME=admin \
 OPENSEARCH_PASSWORD=5D27220@08e3 \
 OPENSEARCH_ADDRESSES=https://localhost:9200 \
-build/receiver
+go run cmd/receiver/main.go
 ```
 
 ## Playground

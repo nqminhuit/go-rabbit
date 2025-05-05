@@ -1,4 +1,4 @@
-package main
+package service
 
 import (
 	"bytes"
@@ -148,7 +148,7 @@ func (o *OpenSearchClient) createIngestPipeline() {
 	slog.Info("Created ingest pipeline", "response", res)
 }
 
-func (o *OpenSearchClient) addToBulk(indexer *opensearchutil.BulkIndexer, dataId string, data *bytes.Reader) {
+func (o *OpenSearchClient) AddToBulk(indexer *opensearchutil.BulkIndexer, dataId string, data *bytes.Reader) {
 	err := (*indexer).Add(context.Background(), opensearchutil.BulkIndexerItem{
 		Action:     "index",
 		DocumentID: dataId,
@@ -172,7 +172,7 @@ func (o *OpenSearchClient) addToBulk(indexer *opensearchutil.BulkIndexer, dataId
 	}
 }
 
-func connectToOpenSearch(coreIndexName string, username string, password string, addresses []string) *OpenSearchClient {
+func ConnectToOpenSearch(coreIndexName string, username string, password string, addresses []string) *OpenSearchClient {
 	slog.Info("Connecting to opensearch...")
 	client, err := opensearchapi.NewClient(opensearchapi.Config{
 		Client: opensearch.Config{
