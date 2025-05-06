@@ -1,13 +1,14 @@
-package service
+package http
 
 import (
 	"io"
 	"log/slog"
 	"net/http"
+	"server/transport/amqp"
 	"server/utils"
 )
 
-func ReceiveReportHandler(mq *RabbitMQ) func(w http.ResponseWriter, r *http.Request) {
+func ReceiveReportHandler(mq *amqp.RabbitMQ) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("dataRetentionInMillis", "1234567890")
 		reader, err := r.MultipartReader()

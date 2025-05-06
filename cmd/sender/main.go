@@ -5,12 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"server/service"
+	"server/transport/amqp"
+	handler "server/transport/http"
 	"server/utils"
 )
 
 func main() {
-	mq := &service.RabbitMQ{
+	mq := &amqp.RabbitMQ{
 		Url:            "amqp://guest:guest@localhost:5672",
 		QueueName:      "mdcorereports",
 		Exchange:       "",
@@ -21,7 +22,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /mdcore/integration/console/{deploymentId}/report/scan", service.ReceiveReportHandler(mq))
+	mux.HandleFunc("POST /mdcore/integration/console/{deploymentId}/report/scan", handler.ReceiveReportHandler(mq))
 
 	port := os.Getenv("SVPORT")
 	slog.Info("Server is up and running")

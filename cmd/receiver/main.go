@@ -9,6 +9,7 @@ import (
 	"server/service"
 	"server/utils"
 	"strings"
+	mq "server/transport/amqp"
 
 	"github.com/opensearch-project/opensearch-go/v4/opensearchutil"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -93,7 +94,7 @@ func (consumer *RabbitMQBatchConsumer) start() {
 }
 
 func main() {
-	mq := &service.RabbitMQ{
+	mq := &mq.RabbitMQ{
 		Url:            "amqp://guest:guest@localhost:5672",
 		QueueName:      "mdcorereports",
 		Exchange:       "",
