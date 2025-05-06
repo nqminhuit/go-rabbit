@@ -1,0 +1,32 @@
+syntax = "proto3";
+option go_package = "com.opswat.mem.fusion.account";
+package com.opswat.mem.fusion.account;
+
+service AccountService {
+    rpc findByID(AccountIDParam) returns (AccountDTO);
+    rpc findByLicenseKey(LicenseKeyParam) returns (AccountDTO);
+    rpc findByRegCode(RegCodeParam) returns (AccountDTO);
+}
+
+message AccountIDParam {
+    string value = 1;
+}
+message LicenseKeyParam {
+    string value = 1;
+}
+
+message RegCodeParam {
+    string value = 1;
+}
+
+message AccountDTO {
+    string id = 1;
+    string email = 2;
+    string license_key = 3;
+    AccountConfig config = 4;
+    string name = 5;
+}
+
+message AccountConfig {
+    int32 data_retention = 1;
+}

@@ -6,7 +6,7 @@ function send() {
    productType=MDCORE
    productUrl=localhost:8000
    apikey=aaaaaaaaaaaaaaaaaaaaaaaa
-   curl -sSL -w 'status: %{http_code}\n' -X POST $productUrl'/mdcore/integration/console/'$depId'/report/scan' \
+   curl -vsSL -w 'status: %{http_code}\n' -X POST $productUrl'/mdcore/integration/console/'$depId'/report/scan' \
         -H 'content-type: multipart/form-data' \
         -H 'api-key: '$apikey \
         -F "file01=@/home/minh/Documents/dev/core_req_nested/f336c57e7c4045db9d8771d29872f629/e777042cd0904c5cbd07515903066cf0/01a92ff0f3e64e13a14ca08c824902d4.json" \

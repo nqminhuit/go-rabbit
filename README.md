@@ -1,6 +1,21 @@
 # go-rabbit
 testing golang with rabbitmq
 
+## Generate code manually
+
+pre-condition
+```bash
+sudo apt-get install -y protobuf-compiler
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
+generate code
+```bash
+cd transport/grpc/proto/; protoc account.proto --go_out=. --go-grpc_out=. --go-grpc_opt=paths=import --go_opt=paths=import
+```
+
+
 ## Start RabbitMQ
 ```bash
 podman run --replace -d --name rabbitmq -p 5672:5672 -p 15672:15672 docker.io/rabbitmq:4.0-management-alpine
@@ -13,7 +28,7 @@ podman run --replace -d --name rabbitmq -p 5672:5672 -p 15672:15672 docker.io/ra
 
 sender:
 ```bash
-SVPORT=9093 go run cmd/sender/main.go 
+SVPORT=9093 go run cmd/sender/main.go
 ```
 
 receiver:

@@ -1,4 +1,10 @@
-FROM docker.io/golang:1.24.2-alpine3.21 as base
+FROM docker.io/golang:1.24.2-alpine3.21 as grpc-base
+RUN apk add protoc
+RUN protoc --version
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+FROM grpc-base
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
@@ -7,7 +13,10 @@ COPY service ./service
 COPY transport ./transport
 ENV TZ=Asia/Ho_Chi_Minh
 
-FROM base
 COPY cmd/sender .
+RUN go generate -v transport/grpc/proto/generate.go
+# RUN cat transport/grpc/proto/account.pb.go
+# RUN cat transport/grpc/proto/account_grpc.pb.go
+# RUN tree .
 RUN go build -o sender
 CMD ["/build/sender"]

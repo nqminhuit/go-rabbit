@@ -12,14 +12,14 @@ spec:
     - containerPort: 80
       hostPort: 8000
 
-  # - name: redis
-  #   image: docker.io/library/redis:7.2.7-alpine3.21
-  #   resources:
-  #     limits:
-  #       memory: "256M"
-  #   ports:
-  #   - containerPort: 6379
-  #     hostPort: 6379
+  - name: redis
+    image: docker.io/library/redis:7.2.7-alpine3.21
+    resources:
+      limits:
+        memory: "256M"
+    ports:
+    - containerPort: 6379
+      hostPort: 6379
 
   - name: mq
     image: docker.io/rabbitmq:4.0-management-alpine
@@ -116,6 +116,15 @@ spec:
     resources:
       limits:
         memory: "100M"
+
+  - name: internal-api
+    image: localhost/fusion-account-internal-api:latest
+    resources:
+      limits:
+        memory: "100M"
+    ports:
+    - containerPort: 50051
+      hostPort: 50051
   # volumes:
   # - name: pv-mongodb-fusion
   #   hostPath:

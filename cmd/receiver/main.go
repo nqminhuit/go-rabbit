@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"server/service"
+	mq "server/transport/amqp"
 	"server/utils"
 	"strings"
-	mq "server/transport/amqp"
 
 	"github.com/opensearch-project/opensearch-go/v4/opensearchutil"
 	amqp "github.com/rabbitmq/amqp091-go"
