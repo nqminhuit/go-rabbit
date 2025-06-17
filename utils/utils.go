@@ -1,20 +1,21 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
 )
 
-func FailOnError(err error, msg string) {
+func FailOnError(err error, msg string, args ...string) {
 	if err != nil {
-		log.Panicf("%s: %s", msg, err)
+		log.Panicf("%s: %s", fmt.Sprintf(msg, args), err)
 	}
 }
 
-func LogOnError(err error, msg string) {
+func LogOnError(err error, msg string, args ...string) {
 	if err != nil {
-		slog.Error(msg, "Reason", err.Error())
+		slog.Error(fmt.Sprintf(msg, args), "Reason", err.Error())
 	}
 }
 
